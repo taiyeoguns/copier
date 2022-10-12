@@ -1,4 +1,5 @@
 """Functions used to load user data."""
+
 import json
 import sys
 import warnings
@@ -39,9 +40,6 @@ if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
     from backports.cached_property import cached_property
-
-if TYPE_CHECKING:
-    pass
 
 
 # TODO Remove these two functions as well as DEFAULT_DATA in a future release
@@ -206,13 +204,13 @@ class Question:
     when: Union[str, bool] = True
 
     @pydantic_validator("var_name")
-    def _check_var_name(cls, v):
+    def _check_var_name(self, v):
         if v in DEFAULT_DATA:
             raise ValueError("Invalid question name")
         return v
 
     @pydantic_validator("type", always=True)
-    def _check_type(cls, v, values):
+    def _check_type(self, v, values):
         if v == "":
             default_type_name = type(values.get("default")).__name__
             v = default_type_name if default_type_name in CAST_STR_TO_NATIVE else "yaml"
@@ -246,10 +244,15 @@ class Question:
         default = self.get_default()
         # If there are choices, return the one that matches the expressed default
         if self.choices:
-            for choice in self._formatted_choices:
-                if choice.value == default:
-                    return choice
-            return None
+            return next(
+                (
+                    choice
+                    for choice in self._formatted_choices
+                    if choice.value == default
+                ),
+                None,
+            )
+
         # Yes/No questions expect and return bools
         if isinstance(default, bool) and self.get_type_name() == "bool":
             return default
@@ -296,9 +299,8 @@ class Question:
     def get_message(self) -> str:
         """Get the message that will be printed to the user."""
         if self.help:
-            rendered_help = self.render_value(self.help)
-            if rendered_help:
-                return force_str_end(rendered_help) + "  "
+            if rendered_help := self.render_value(self.help):
+                return f"{force_str_end(rendered_help)}  "
         # Otherwise, there's no help message defined.
         message = self.var_name
         answer_type = self.get_type_name()
@@ -339,8 +341,7 @@ class Question:
             if lexer:
                 result["lexer"] = lexer
             result["multiline"] = self.get_multiline()
-            placeholder = self.get_placeholder()
-            if placeholder:
+            if placeholder := self.get_placeholder():
                 result["placeholder"] = placeholder
             result["validate"] = self.validate_answer
         result.update({"type": questionary_type})

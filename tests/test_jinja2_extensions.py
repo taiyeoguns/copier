@@ -14,7 +14,7 @@ class FilterExtension(Extension):
         super().__init__(environment)
 
         def super_filter(obj):
-            return str(obj) + " super filter!"
+            return f"{str(obj)} super filter!"
 
         environment.filters["super_filter"] = super_filter
 
@@ -26,17 +26,14 @@ class GlobalsExtension(Extension):
         super().__init__(environment)
 
         def super_func(argument):
-            return str(argument) + " super func!"
+            return f"{str(argument)} super func!"
 
         environment.globals.update(super_func=super_func)
         environment.globals.update(super_var="super var!")
 
 
 def test_default_jinja2_extensions(tmp_path):
-    copier.copy(
-        str(PROJECT_TEMPLATE) + "_extensions_default",
-        tmp_path,
-    )
+    copier.copy(f"{str(PROJECT_TEMPLATE)}_extensions_default", tmp_path)
     super_file = tmp_path / "super_file.md"
     assert super_file.exists()
     expected = "path\n"
@@ -44,10 +41,7 @@ def test_default_jinja2_extensions(tmp_path):
 
 
 def test_additional_jinja2_extensions(tmp_path):
-    copier.copy(
-        str(PROJECT_TEMPLATE) + "_extensions_additional",
-        tmp_path,
-    )
+    copier.copy(f"{str(PROJECT_TEMPLATE)}_extensions_additional", tmp_path)
     super_file = tmp_path / "super_file.md"
     assert super_file.exists()
     expected = "super var! super func! super filter!\n"

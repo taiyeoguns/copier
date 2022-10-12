@@ -236,23 +236,20 @@ class CopierApp(cli.Application):
         """
         # Redirect to subcommand if supplied
         if args and args[0] in self._subcommands:
-            self.nested_command = (
-                self._subcommands[args[0]].subapplication,
-                ["copier %s" % args[0]] + list(args[1:]),
-            )
-        # If using 0 or 1 args, you want to update
+            self.nested_command = self._subcommands[args[0]].subapplication, [
+                f"copier {args[0]}"
+            ] + list(args[1:])
+
         elif len(args) in {0, 1}:
             self.nested_command = (
                 self._subcommands["update"].subapplication,
                 ["copier update"] + list(args),
             )
-        # If using 2 args, you want to copy
         elif len(args) == 2:
             self.nested_command = (
                 self._subcommands["copy"].subapplication,
                 ["copier copy"] + list(args),
             )
-        # If using more args, you're wrong
         else:
             self.help()
             raise UserMessageError("Unsupported arguments")

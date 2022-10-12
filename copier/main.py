@@ -171,13 +171,14 @@ class Worker:
 
     def _answers_to_remember(self) -> Mapping:
         """Get only answers that will be remembered in the copier answers file."""
-        # All internal values must appear first
-        answers: AnyByStrDict = {}
         commit = self.template.commit
         src = self.template.url
-        for key, value in (("_commit", commit), ("_src_path", src)):
-            if value is not None:
-                answers[key] = value
+        answers: AnyByStrDict = {
+            key: value
+            for key, value in (("_commit", commit), ("_src_path", src))
+            if value is not None
+        }
+
         # Other data goes next
         answers.update(
             (str(k), v)
@@ -351,20 +352,18 @@ class Worker:
             last=self.subproject.last_answers,
             metadata=self.template.metadata,
         )
-        questions: List[Question] = []
-        for var_name, details in self.template.questions_data.items():
-            if var_name in result.init:
-                # Do not ask again
-                continue
-            questions.append(
-                Question(
-                    answers=result,
-                    ask_user=not self.defaults,
-                    jinja_env=self.jinja_env,
-                    var_name=var_name,
-                    **details,
-                )
+        questions: List[Question] = [
+            Question(
+                answers=result,
+                ask_user=not self.defaults,
+                jinja_env=self.jinja_env,
+                var_name=var_name,
+                **details,
             )
+            for var_name, details in self.template.questions_data.items()
+            if var_name not in result.init
+        ]
+
         for question in questions:
             # Display TUI and ask user interactively only without --defaults
             try:
@@ -534,11 +533,10 @@ class Worker:
             return None
         rendered_parts = []
         for part in relpath.parts:
-            # Skip folder if any part is rendered as an empty string
-            part = self._render_string(part)
-            if not part:
+            if part := self._render_string(part):
+                rendered_parts.append(part)
+            else:
                 return None
-            rendered_parts.append(part)
         with suppress(IndexError):
             # With an empty suffix, the next instruction
             # would erroneously empty the last rendered part
@@ -602,9 +600,7 @@ class Worker:
 
         Otherwise, execute [run_update][copier.main.Worker.run_update].
         """
-        if self.src_path:
-            return self.run_copy()
-        return self.run_update()
+        return self.run_copy() if self.src_path else self.run_update()
 
     def run_copy(self) -> None:
         """Generate a subproject from zero, ignoring what was in the folder.
@@ -680,10 +676,10 @@ class Worker:
             )
         # Copy old template into a temporary destination
         with TemporaryDirectory(
-            prefix=f"{__name__}.update_diff."
-        ) as old_copy, TemporaryDirectory(
-            prefix=f"{__name__}.recopy_diff."
-        ) as new_copy:
+                prefix=f"{__name__}.update_diff."
+            ) as old_copy, TemporaryDirectory(
+                prefix=f"{__name__}.recopy_diff."
+            ) as new_copy:
             old_worker = replace(
                 self,
                 dst_path=old_copy,
@@ -721,7 +717,7 @@ class Worker:
                 git("commit", "--allow-empty", "-am", "dumb commit 2")
                 git("config", "--unset", "user.name")
                 git("config", "--unset", "user.email")
-                git("remote", "add", "real_dst", "file://" + subproject_top)
+                git("remote", "add", "real_dst", f"file://{subproject_top}")
                 git("fetch", "--depth=1", "real_dst", "HEAD")
                 diff_cmd = git["diff-tree", "--unified=1", "HEAD...FETCH_HEAD"]
                 try:

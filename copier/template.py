@@ -197,8 +197,7 @@ class Template:
     use_prereleases: bool = False
 
     def _cleanup(self) -> None:
-        temp_clone = self._temp_clone
-        if temp_clone:
+        if temp_clone := self._temp_clone:
             rmtree(
                 temp_clone,
                 ignore_errors=False,
@@ -211,9 +210,7 @@ class Template:
         original_path = Path(self.url).expanduser()
         with suppress(OSError):  # triggered for URLs on Windows
             original_path = original_path.resolve()
-        if clone_path != original_path:
-            return clone_path
-        return None
+        return clone_path if clone_path != original_path else None
 
     @cached_property
     def _raw_config(self) -> AnyByStrDict:
@@ -287,19 +284,19 @@ class Template:
             #       See https://github.com/copier-org/copier/issues/464
             result["keep_trailing_newline"] = True
 
-        # TODO Copier v7+ will not use any of these altered defaults
-        old_defaults = {
-            "autoescape": False,
-            "block_end_string": "%]",
-            "block_start_string": "[%",
-            "comment_end_string": "#]",
-            "comment_start_string": "[#",
-            "keep_trailing_newline": True,
-            "variable_end_string": "]]",
-            "variable_start_string": "[[",
-        }
         if self.min_copier_version and self.min_copier_version in COPIER_JINJA_BREAK:
             warned = False
+            # TODO Copier v7+ will not use any of these altered defaults
+            old_defaults = {
+                "autoescape": False,
+                "block_end_string": "%]",
+                "block_start_string": "[%",
+                "comment_end_string": "#]",
+                "comment_start_string": "[#",
+                "keep_trailing_newline": True,
+                "variable_end_string": "]]",
+                "variable_start_string": "[[",
+            }
             for key, value in old_defaults.items():
                 if key not in result:
                     if not warned:
@@ -354,7 +351,7 @@ class Template:
             from_template: Original template, from which we are migrating.
         """
         result: List[Task] = []
-        if not (self.version and from_template.version):
+        if not self.version or not from_template.version:
             return result
         extra_env: Env = {
             "STAGE": stage,
@@ -372,8 +369,11 @@ class Template:
                     "VERSION_CURRENT": migration["version"],
                     "VERSION_PEP440_CURRENT": str(current),
                 }
-                for cmd in migration.get(stage, []):
-                    result.append(Task(cmd=cmd, extra_env=extra_env))
+                result.extend(
+                    Task(cmd=cmd, extra_env=extra_env)
+                    for cmd in migration.get(stage, [])
+                )
+
         return result
 
     @cached_property
